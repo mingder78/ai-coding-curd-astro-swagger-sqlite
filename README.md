@@ -1,4 +1,4 @@
-# z
+# ai-coding-curd-astro-swagger-sqlite 
 
 To install dependencies:
 
@@ -46,4 +46,7 @@ ming-ders-MacBook.local💩➜  z curl -X GET http://localhost:3000/items \
 
 ## links
 
-[https://claude.ai/share/12c19487-c220-439e-a053-5d66f00ab6b0](https://claude.ai/share/12c19487-c220-439e-a053-5d66f00ab6b0)
+Claude won, [https://claude.ai/share/12c19487-c220-439e-a053-5d66f00ab6b0](https://claude.ai/share/12c19487-c220-439e-a053-5d66f00ab6b0)
+* tiny error in rate limiting
+* better than [Grok 3 (beta)](https://grok.com/share/bGVnYWN5_f85d5448-fc22-4a72-bc3e-335e89fffea2)
+* much much batter than [Azure OpenAI (GTP-4o)](https://github.com/copilot/share/80055284-40c0-80b6-9100-084900084045)
