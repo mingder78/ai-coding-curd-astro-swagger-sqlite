@@ -1,0 +1,6 @@
+{
+  "databaseURL": "https://Ming-der-Wang-s-workspace-o0c6p5.us-east-1.xata.sh/db/auth",
+  "codegen": {
+    "output": "src/xata.ts"
+  }
+}

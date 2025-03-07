@@ -5,7 +5,7 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch index.ts"
+    "dev": "bun run --watch src/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -19,7 +19,9 @@
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/jwt": "^1.2.0",
     "@elysiajs/swagger": "^1.2.2",
+    "@xata.io/kysely": "^0.2.1",
     "elysia": "^1.2.22",
-    "elysia-rate-limit": "^4.1.0"
+    "elysia-rate-limit": "^4.1.0",
+    "kysely": "^0.27.6"
   }
 }

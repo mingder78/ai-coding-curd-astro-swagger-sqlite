@@ -5,6 +5,18 @@ import { jwt } from '@elysiajs/jwt';
 import { cors } from '@elysiajs/cors';
 import { rateLimit } from 'elysia-rate-limit'
 import { Database } from 'bun:sqlite';
+// Generated with CLI
+import { getXataClient, DatabaseSchema } from "./xata";
+import { Kysely } from "kysely";
+import { XataDialect, Model } from "@xata.io/kysely";
+
+const xata = getXataClient();
+
+const db2 = new Kysely<Model<DatabaseSchema>>({
+  dialect: new XataDialect({ xata }),
+});
+const page = await xata.db.users.getPaginated();
+console.log(page.records);
 
 // Initialize SQLite database
 const db = new Database('app.db');
