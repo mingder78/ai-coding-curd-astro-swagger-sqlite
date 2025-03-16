@@ -3,7 +3,6 @@ import { Elysia, t } from 'elysia';
 import { swagger } from '@elysiajs/swagger';
 import { jwt } from '@elysiajs/jwt';
 import { cors } from '@elysiajs/cors';
-import { rateLimit } from 'elysia-rate-limit'
 import { Database } from 'bun:sqlite';
 // Generated with CLI
 import { getXataClient, DatabaseSchema } from "./xata";
@@ -59,6 +58,12 @@ const LoginSchema = t.Object({
   password: t.String()
 });
 
+const logPlugin = new Elysia({
+  name: "logPlugin",
+}).decorate("log", (message: string) => {
+  console.log(`[LOG]: ${message}`);
+});
+
 const app = new Elysia()
   // Add Swagger documentation
   .use(swagger({
@@ -82,7 +87,14 @@ const app = new Elysia()
   // Add CORS support
   .use(cors())
   // Add rate limiting
-  .use(rateLimit()).listen(3000)
+  .use(logPlugin)
+  .group('/ping', app => app
+    .get("/", (ctx) => {
+      ctx.log(JSON.stringify(Object.keys(ctx)));
+      console.log(ctx.headers)
+      return "Check your console!";
+    }))
+  .derive((s)=>console.log(s))
   // Define auth middleware
   .derive(({ jwt, headers, set }) => {
     return {
@@ -326,5 +338,5 @@ const app = new Elysia()
   )
   .listen(3000);
 
-console.log(`🦊 Elysia server is running at ${app.server?.hostname}:${app.server?.port}`);
-console.log(`📚 Swagger UI available at http://localhost:3000/swagger`);
+console.log(`🦊 Elysia server is running at http://${app.server?.hostname}:${app.server?.port}`);
+console.log(`📚 Swagger UI available at http://localhost:3000/ping`);

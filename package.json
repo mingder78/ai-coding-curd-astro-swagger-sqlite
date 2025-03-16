@@ -1,7 +1,7 @@
 {
   "name": "ai-coding-curd-astro-swagger-sqlite",
   "description": "use elysia to create a CURD api server with access token with rate limit and swagger ui",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "module": "index.ts",
   "type": "module",
   "scripts": {
