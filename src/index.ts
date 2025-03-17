@@ -91,10 +91,10 @@ const app = new Elysia()
   .group('/ping', app => app
     .get("/", (ctx) => {
       ctx.log(JSON.stringify(Object.keys(ctx)));
-      console.log(ctx.headers)
+      const { authorization, ...newObj } = ctx.headers;
+      console.log(newObj)
       return "Check your console!";
     }))
-  .derive((s)=>console.log(s))
   // Define auth middleware
   .derive(({ jwt, headers, set }) => {
     return {
@@ -119,14 +119,14 @@ const app = new Elysia()
   })
   // Auth routes
   .group('/auth', app => app
-    .post('/register', 
+    .post('/register',
       async ({ body }) => {
         const { username, password } = body;
-        
+
         try {
           const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
           const result = stmt.run(username, password); // Note: In production, hash passwords!
-          
+
           return {
             success: true,
             id: result.lastInsertRowid
@@ -137,7 +137,7 @@ const app = new Elysia()
             error: 'Username already exists'
           };
         }
-      }, 
+      },
       {
         body: UserSchema,
         detail: {
@@ -147,30 +147,30 @@ const app = new Elysia()
         }
       }
     )
-    .post('/login', 
+    .post('/login',
       async ({ body, jwt }) => {
         const { username, password } = body;
-        
+
         const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?')
           .get(username, password); // Note: In production, verify hashed passwords!
-        
+
         if (!user) {
           return {
             success: false,
             message: 'Invalid credentials'
           };
         }
-        
+
         const token = await jwt.sign({
           id: user.id,
           username: user.username
         });
-        
+
         return {
           success: true,
           token
         };
-      }, 
+      },
       {
         body: LoginSchema,
         detail: {
@@ -183,14 +183,14 @@ const app = new Elysia()
   )
   // Item routes
   .group('/items', app => app
-    .get('/', 
+    .get('/',
       async ({ isAuthenticated }) => {
         const auth = await isAuthenticated();
         if (!auth) return { error: 'Unauthorized' };
-        
+
         const items = db.prepare('SELECT * FROM items WHERE user_id = ?').all(auth.id);
         return items;
-      }, 
+      },
       {
         detail: {
           tags: ['Items'],
@@ -200,23 +200,23 @@ const app = new Elysia()
         }
       }
     )
-    .get('/:id', 
+    .get('/:id',
       async ({ params, isAuthenticated }) => {
         const auth = await isAuthenticated();
         if (!auth) return { error: 'Unauthorized' };
-        
+
         const item = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?')
           .get(params.id, auth.id);
-        
+
         if (!item) {
           return {
             success: false,
             message: 'Item not found'
           };
         }
-        
+
         return item;
-      }, 
+      },
       {
         params: t.Object({
           id: t.Numeric()
@@ -229,16 +229,16 @@ const app = new Elysia()
         }
       }
     )
-    .post('/', 
+    .post('/',
       async ({ body, isAuthenticated }) => {
         const auth = await isAuthenticated();
         if (!auth) return { error: 'Unauthorized' };
-        
+
         const { name, description } = body;
-        
+
         const stmt = db.prepare('INSERT INTO items (name, description, user_id) VALUES (?, ?, ?)');
         const result = stmt.run(name, description, auth.id);
-        
+
         return {
           success: true,
           id: result.lastInsertRowid,
@@ -246,7 +246,7 @@ const app = new Elysia()
           description,
           user_id: auth.id
         };
-      }, 
+      },
       {
         body: ItemSchema,
         detail: {
@@ -257,27 +257,27 @@ const app = new Elysia()
         }
       }
     )
-    .put('/:id', 
+    .put('/:id',
       async ({ params, body, isAuthenticated }) => {
         const auth = await isAuthenticated();
         if (!auth) return { error: 'Unauthorized' };
-        
+
         const { name, description } = body;
-        
+
         // First check if the item exists and belongs to the user
         const existingItem = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?')
           .get(params.id, auth.id);
-        
+
         if (!existingItem) {
           return {
             success: false,
             message: 'Item not found or unauthorized'
           };
         }
-        
+
         const stmt = db.prepare('UPDATE items SET name = ?, description = ? WHERE id = ? AND user_id = ?');
         stmt.run(name, description, params.id, auth.id);
-        
+
         return {
           success: true,
           id: Number(params.id),
@@ -285,7 +285,7 @@ const app = new Elysia()
           description,
           user_id: auth.id
         };
-      }, 
+      },
       {
         params: t.Object({
           id: t.Numeric()
@@ -299,30 +299,30 @@ const app = new Elysia()
         }
       }
     )
-    .delete('/:id', 
+    .delete('/:id',
       async ({ params, isAuthenticated }) => {
         const auth = await isAuthenticated();
         if (!auth) return { error: 'Unauthorized' };
-        
+
         // First check if the item exists and belongs to the user
         const existingItem = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?')
           .get(params.id, auth.id);
-        
+
         if (!existingItem) {
           return {
             success: false,
             message: 'Item not found or unauthorized'
           };
         }
-        
+
         const stmt = db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?');
         stmt.run(params.id, auth.id);
-        
+
         return {
           success: true,
           message: 'Item deleted successfully'
         };
-      }, 
+      },
       {
         params: t.Object({
           id: t.Numeric()
