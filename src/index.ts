@@ -14,8 +14,8 @@ const xata = getXataClient();
 const db2 = new Kysely<Model<DatabaseSchema>>({
   dialect: new XataDialect({ xata }),
 });
-const page = await xata.db.users.getPaginated();
-console.log(page.records);
+const page = await xata.db.users.getAll();
+console.log(page);
 
 // Initialize SQLite database
 const db = new Database('app.db');

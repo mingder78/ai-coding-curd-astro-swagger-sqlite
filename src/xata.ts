@@ -10,8 +10,9 @@ const tables = [
   {
     name: "users",
     columns: [
-      { name: "username", type: "string", unique: true },
+      { name: "name", type: "string", unique: true },
       { name: "password", type: "string" },
+      { name: "email", type: "text" },
     ],
     revLinks: [{ column: "user", table: "items" }],
   },
@@ -41,8 +42,8 @@ export type DatabaseSchema = {
 };
 
 const DatabaseClient = buildClient();
-
 const defaultOptions = {
+  apiKey: import.meta.env.XATA_API_KEY,
   databaseURL:
     "https://Ming-der-Wang-s-workspace-o0c6p5.ap-southeast-2.xata.sh/db/auth",
 };
