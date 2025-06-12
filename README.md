@@ -75,6 +75,20 @@ ming-ders-MacBook.local💩➜  curl -X GET http://localhost:3000/items \
 ]
 ```
 
+## cloud db
+
+* add your xata API KEY, DATABASE_URL, and BRANCH in .env
+```
+cat .env.example
+XATA_API_KEY=<your xata api key>
+XATA_DATABASE_URL=https://<your workspace name>.us-east-1.xata.sh/db/<your database name>
+
+# Xata branch that will be used
+# if there's not a xata branch with
+# the same name as your git branch
+XATA_BRANCH=main
+```
+* get your own xata API key from [https://xata.io/](https://xata.io/)
 ## links
 
 Claude won, [https://claude.ai/share/12c19487-c220-439e-a053-5d66f00ab6b0](https://claude.ai/share/12c19487-c220-439e-a053-5d66f00ab6b0)
