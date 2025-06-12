@@ -12,7 +12,8 @@ const tables = [
     columns: [
       { name: "name", type: "string", unique: true },
       { name: "password", type: "string" },
-      { name: "email", type: "text" },
+      { name: "email", type: "email", unique: true },
+      { name: "userHandle", type: "string" }
     ],
     revLinks: [{ column: "user", table: "items" }],
   },
@@ -25,6 +26,16 @@ const tables = [
       { name: "created_at", type: "datetime" },
     ],
   },
+  {
+    name: "credentials",
+    columns: [
+      { name: "credentialID", type: "string", unique: true },
+      { name: "publicKey", type: "text" },
+      { name: "counter", type: "int" },
+      { name: "userId", type: "link", table: "users" },
+      { name: "transports", type: "json" }
+    ]
+  }
 ] as const;
 
 export type SchemaTables = typeof tables;
@@ -44,8 +55,7 @@ export type DatabaseSchema = {
 const DatabaseClient = buildClient();
 const defaultOptions = {
   apiKey: import.meta.env.XATA_API_KEY,
-  databaseURL:
-    "https://Ming-der-Wang-s-workspace-o0c6p5.ap-southeast-2.xata.sh/db/auth",
+  databaseURL: import.meta.env.XATA_DATABASE_URL
 };
 
 export class XataClient extends DatabaseClient<DatabaseSchema> {

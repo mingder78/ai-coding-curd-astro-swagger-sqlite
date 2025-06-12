@@ -9,6 +9,10 @@ import { getXataClient, type DatabaseSchema } from "./xata";
 import { Kysely } from "kysely";
 import { XataDialect, type Model } from "@xata.io/kysely";
 
+const RP_NAME = import.meta.env.RP_NAME || 'YourAppName';
+const RP_ID = import.meta.env.RP_ID || 'localhost';
+const ORIGIN = import.meta.env.ORIGIN || 'http://localhost:3000';
+
 const xata = getXataClient();
 
 const db2 = new Kysely<Model<DatabaseSchema>>({
@@ -342,6 +346,152 @@ const app = new Elysia()
         }
       }
     )
+  )
+  // Registration: Generate options
+  .post(
+    '/register/options',
+    async ({ body: { email } }) => {
+      const user = await xata.db.Users.createOrUpdate({ email, userHandle: crypto.randomUUID() });
+      const credentials = await xata.db.Credentials.filter({ userId: user.id }).getMany();
+      const challenge = await generateRegistrationOptions({
+        rpName: RP_NAME,
+        rpID: RP_ID,
+        userID: user.userHandle,
+        userName: email,
+        attestationType: 'none',
+        excludeCredentials: credentials.map((cred) => ({
+          id: base64url.decode(cred.credentialID),
+          type: 'public-key',
+          transports: cred.transports || [],
+        })),
+      });
+
+      // Store challenge temporarily (e.g., in Xata or in-memory)
+      await xata.db.Users.update(user.id, { challenge: challenge.challenge });
+
+      return challenge;
+    },
+    { body: t.Object({ email: t.String({ format: 'email' }) }) }
+  )
+  // Registration: Verify response
+  .post(
+    '/register/verify',
+    async ({ body: { email, response } }) => {
+      const user = await xata.db.Users.filter({ email }).getFirst();
+      if (!user || !user.challenge) {
+        throw new Error('User or challenge not found');
+      }
+
+      const verification = await verifyRegistrationResponse({
+        response,
+        expectedChallenge: user.challenge,
+        expectedOrigin: ORIGIN,
+        expectedRPID: RP_ID,
+      });
+
+      if (verification.verified) {
+        await xata.db.Credentials.create({
+          credentialID: base64url.encode(verification.registrationInfo!.credentialID),
+          publicKey: verification.registrationInfo!.credentialPublicKey.toString('base64'),
+          counter: verification.registrationInfo!.counter,
+          userId: user.id,
+          transports: response.transports || [],
+        });
+
+        // Clear challenge
+        await xata.db.Users.update(user.id, { challenge: null });
+
+        // Generate JWT
+        const token = await app.jwt.sign({ userId: user.id, email });
+        return { verified: true, token };
+      }
+
+      throw new Error('Registration failed');
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: 'email' }),
+        response: t.Any(), // WebAuthn response is complex; use Any for simplicity
+      }),
+    }
+  )
+  // Authentication: Generate options
+  .post(
+    '/login/options',
+    async ({ body: { email } }) => {
+      const user = await xata.db.Users.filter({ email }).getFirst();
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const credentials = await xata.db.Credentials.filter({ userId: user.id }).getMany();
+      const options = await generateAuthenticationOptions({
+        rpID: RP_ID,
+        allowCredentials: credentials.map((cred) => ({
+          id: base64url.decode(cred.credentialID),
+          type: 'public-key',
+          transports: cred.transports || [],
+        })),
+      });
+
+      // Store challenge
+      await xata.db.Users.update(user.id, { challenge: options.challenge });
+
+      return options;
+    },
+    { body: t.Object({ email: t.String({ format: 'email' }) }) }
+  )
+  // Authentication: Verify response
+  .post(
+    '/login/verify',
+    async ({ body: { email, response } }) => {
+      const user = await xata.db.Users.filter({ email }).getFirst();
+      if (!user || !user.challenge) {
+        throw new Error('User or challenge not found');
+      }
+
+      const credential = await xata.db.Credentials
+        .filter({ credentialID: base64url.encode(response.rawId) })
+        .getFirst();
+
+      if (!credential) {
+        throw new Error('Credential not found');
+      }
+
+      const verification = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge: user.challenge,
+        expectedOrigin: ORIGIN,
+        expectedRPID: RP_ID,
+        authenticator: {
+          credentialID: base64url.decode(credential.credentialID),
+          credentialPublicKey: Buffer.from(credential.publicKey, 'base64'),
+          counter: credential.counter,
+        },
+      });
+
+      if (verification.verified) {
+        // Update counter
+        await xata.db.Credentials.update(credential.id, {
+          counter: verification.authenticationInfo.newCounter,
+        });
+
+        // Clear challenge
+        await xata.db.Users.update(user.id, { challenge: null });
+
+        // Generate JWT
+        const token = await app.jwt.sign({ userId: user.id, email });
+        return { verified: true, token };
+      }
+
+      throw new Error('Authentication failed');
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: 'email' }),
+        response: t.Any(),
+      }),
+    }
   )
   .listen(3000);
 
