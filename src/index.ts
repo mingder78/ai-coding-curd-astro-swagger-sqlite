@@ -5,9 +5,9 @@ import { jwt } from '@elysiajs/jwt';
 import { cors } from '@elysiajs/cors';
 import { Database } from 'bun:sqlite';
 // Generated with CLI
-import { getXataClient, DatabaseSchema } from "./xata";
+import { getXataClient, type DatabaseSchema } from "./xata";
 import { Kysely } from "kysely";
-import { XataDialect, Model } from "@xata.io/kysely";
+import { XataDialect, type Model } from "@xata.io/kysely";
 
 const xata = getXataClient();
 
@@ -75,14 +75,15 @@ const app = new Elysia()
       },
       tags: [
         { name: 'Auth', description: 'Authentication endpoints' },
-        { name: 'Items', description: 'CRUD operations for items' }
+        { name: 'Items', description: 'CRUD operations for items' },
+        { name: 'Test', description: 'For testing' }
       ]
     }
   }))
   // Add JWT authentication
   .use(jwt({
     name: 'jwt',
-    secret: 'your-secret-key-change-this-in-production'
+    secret: import.meta.env.JWT_SECRET!
   }))
   // Add CORS support
   .use(cors())
@@ -93,7 +94,13 @@ const app = new Elysia()
       ctx.log(JSON.stringify(Object.keys(ctx)));
       const { authorization, ...newObj } = ctx.headers;
       console.log(newObj)
-      return "Check your console!";
+      return "PONG";
+    }, {
+      detail: {
+        tags: ['Test'],
+        summary: 'Ping',
+        description: 'return PONG'
+      }
     }))
   // Define auth middleware
   .derive(({ jwt, headers, set }) => {
