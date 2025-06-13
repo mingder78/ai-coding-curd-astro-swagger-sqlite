@@ -64,7 +64,7 @@ curl --location 'localhost:3000/register/options' \
   "hints": []
 }
 ```
-* to get create options API
+* to get login options API
 
 ```
 curl --location 'localhost:3000/login/options' \
