@@ -15,6 +15,7 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { isoUint8Array } from '@simplewebauthn/server/helpers';
+import base64url from 'base64url';
 
 const xata = getXataClient();
 
@@ -165,7 +166,7 @@ const app = new Elysia()
 
         const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?')
           .get(username, password); // Note: In production, verify hashed passwords!
-console.log(user)
+        console.log(user)
         if (!user) {
           return {
             success: false,
@@ -361,12 +362,11 @@ console.log(user)
         userName: email,
         attestationType: 'none',
         excludeCredentials: credentials.map((cred) => ({
-          id: base64url.decode(cred.credentialID),
+          id: base64url.decode(cred.credentialID || ""),
           type: 'public-key',
           transports: cred.transports || [],
         })),
       });
-console.log(challenge)
       // Store challenge temporarily (e.g., in Xata or in-memory)
       await xata.db.users.update(user.id, { challenge: challenge.challenge });
 
@@ -382,13 +382,13 @@ console.log(challenge)
       if (!user || !user.challenge) {
         throw new Error('User or challenge not found');
       }
-
       const verification = await verifyRegistrationResponse({
         response,
         expectedChallenge: user.challenge,
         expectedOrigin: ORIGIN,
         expectedRPID: RP_ID,
       });
+      console.log(verification)
 
       if (verification.verified) {
         await xata.db.credentials.create({

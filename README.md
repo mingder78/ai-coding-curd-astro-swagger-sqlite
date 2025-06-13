@@ -64,6 +64,19 @@ curl --location 'localhost:3000/register/options' \
   "hints": []
 }
 ```
+
+* to do register verify API, where response should be a credential ID from passkey register.
+
+```
+curl --location 'localhost:3000/register/verify' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "email": "test@gmail.com",
+  "response": "asdfadsfdsfadsfasdfasdfadsf"
+}'
+Missing credential ID
+```
+
 * to get login options API
 
 ```
