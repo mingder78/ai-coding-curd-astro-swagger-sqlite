@@ -378,17 +378,20 @@ const app = new Elysia()
   .post(
     '/register/verify',
     async ({ body: { email, response } }) => {
+      console.log(response)
       const user = await xata.db.users.filter({ email }).getFirst();
       if (!user || !user.challenge) {
         throw new Error('User or challenge not found');
       }
+      try {
       const verification = await verifyRegistrationResponse({
         response,
         expectedChallenge: user.challenge,
         expectedOrigin: ORIGIN,
         expectedRPID: RP_ID,
       });
-      console.log(verification)
+    console.log(verification.verified) 
+    console.log('asdf') 
 
       if (verification.verified) {
         await xata.db.credentials.create({
@@ -407,6 +410,7 @@ const app = new Elysia()
         return { verified: true, token };
       }
 
+    } catch {(e: Error) => console.log(e)}
       throw new Error('Registration failed');
     },
     {
@@ -451,8 +455,10 @@ const app = new Elysia()
         throw new Error('User or challenge not found');
       }
 
+      // Ensure rawId is a Buffer
+      const rawIdBuffer = Buffer.from(response.rawId, response.rawId instanceof ArrayBuffer ? 'base64' : undefined);
       const credential = await xata.db.credentials
-        .filter({ credentialID: base64url.encode(response.rawId) })
+        .filter({ credentialID: base64url.encode(rawIdBuffer) })
         .getFirst();
 
       if (!credential) {
@@ -472,15 +478,11 @@ const app = new Elysia()
       });
 
       if (verification.verified) {
-        // Update counter
-        await xata.db.Credentials.update(credential.id, {
+        await xata.db.credentials.update(credential.id, {
           counter: verification.authenticationInfo.newCounter,
         });
 
-        // Clear challenge
         await xata.db.users.update(user.id, { challenge: null });
-
-        // Generate JWT
         const token = await app.jwt.sign({ userId: user.id, email });
         return { verified: true, token };
       }
