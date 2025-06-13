@@ -24,7 +24,7 @@ const tables = [
       { name: "password", type: "string" },
       { name: "email", type: "email", unique: true },
       { name: "public_key", type: "text", defaultValue: '""' },
-      { name: "credential_id", type: "text", defaultValue: '""' },
+      { name: "challenge", type: "text", defaultValue: '""' },
       { name: "userHandle", type: "string" },
     ],
     revLinks: [

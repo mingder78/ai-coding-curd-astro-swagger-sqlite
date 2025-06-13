@@ -12,6 +12,62 @@ To run:
 bun run index.ts
 ```
 
+## new webauthn API
+
+```
+curl --location 'localhost:3000/register/options' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "email": "test@gmail.com"
+}' | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   546  100   515  100    31    456     27  0:00:01  0:00:01 --:--:--   491
+{
+  "challenge": "wr18CrsFesVMG1zvASGO6EO_ShkgZsYwBzUT_mxZB8c",
+  "rp": {
+    "name": "YourAppName",
+    "id": "localhost"
+  },
+  "user": {
+    "id": "Y3VzdG9tVXNlcklESGVyZQ",
+    "name": "test@gmail.com",
+    "displayName": ""
+  },
+  "pubKeyCredParams": [
+    {
+      "alg": -8,
+      "type": "public-key"
+    },
+    {
+      "alg": -7,
+      "type": "public-key"
+    },
+    {
+      "alg": -257,
+      "type": "public-key"
+    }
+  ],
+  "timeout": 60000,
+  "attestation": "none",
+  "excludeCredentials": [],
+  "authenticatorSelection": {
+    "residentKey": "preferred",
+    "userVerification": "preferred",
+    "requireResidentKey": false
+  },
+  "extensions": {
+    "credProps": true
+  },
+  "hints": []
+}
+```
+
+
+
+
+## test
+
 This project was created using `bun init` in bun v1.1.20. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
 * if you have no authorization to login
 ```
