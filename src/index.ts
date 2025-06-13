@@ -391,7 +391,7 @@ console.log(challenge)
       });
 
       if (verification.verified) {
-        await xata.db.Credentials.create({
+        await xata.db.credentials.create({
           credentialID: base64url.encode(verification.registrationInfo!.credentialID),
           publicKey: verification.registrationInfo!.credentialPublicKey.toString('base64'),
           counter: verification.registrationInfo!.counter,
@@ -425,7 +425,7 @@ console.log(challenge)
         throw new Error('User not found');
       }
 
-      const credentials = await xata.db.Credentials.filter({ userId: user.id }).getMany();
+      const credentials = await xata.db.credentials.filter({ userId: user.id }).getMany();
       const options = await generateAuthenticationOptions({
         rpID: RP_ID,
         allowCredentials: credentials.map((cred) => ({
@@ -451,7 +451,7 @@ console.log(challenge)
         throw new Error('User or challenge not found');
       }
 
-      const credential = await xata.db.Credentials
+      const credential = await xata.db.credentials
         .filter({ credentialID: base64url.encode(response.rawId) })
         .getFirst();
 

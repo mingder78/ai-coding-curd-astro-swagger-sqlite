@@ -14,6 +14,8 @@ bun run index.ts
 
 ## new webauthn API
 
+* to get register options API
+
 ```
 curl --location 'localhost:3000/register/options' \
 --header 'Content-Type: application/json' \
@@ -62,7 +64,25 @@ curl --location 'localhost:3000/register/options' \
   "hints": []
 }
 ```
+* to get create options API
 
+```
+curl --location 'localhost:3000/login/options' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "email": "test@gmail.com"
+}' | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-100    31    0     0  100    31      0     25  0:00:01  0:00:0100   178  100   147  100    31    105     22  0:00:01  0:00:0100   178  100   147  100    31    105     22  0:00:01  0:00:01 --:--:--   128
+{
+  "rpId": "localhost",
+  "challenge": "_SUUYe1rCBQ6Cbvsl9XX4c_mY3tuQ8nmFkcIBNRuJYg",
+  "allowCredentials": [],
+  "timeout": 60000,
+  "userVerification": "preferred"
+}
+```
 
 
 
