@@ -19,6 +19,8 @@
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/jwt": "^1.2.0",
     "@elysiajs/swagger": "^1.2.2",
+    "@simplewebauthn/server": "^13.1.1",
+    "@xata.io/client": "^0.30.1",
     "@xata.io/kysely": "^0.2.1",
     "elysia": "^1.2.22",
     "elysia-rate-limit": "^4.1.0",

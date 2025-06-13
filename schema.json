@@ -1,6 +1,35 @@
 {
   "tables": [
     {
+      "name": "credentials",
+      "columns": [
+        {
+          "name": "credentialID",
+          "type": "string",
+          "unique": true
+        },
+        {
+          "name": "publicKey",
+          "type": "text"
+        },
+        {
+          "name": "counter",
+          "type": "int"
+        },
+        {
+          "name": "userId",
+          "type": "link",
+          "link": {
+            "table": "users"
+          }
+        },
+        {
+          "name": "transports",
+          "type": "json"
+        }
+      ]
+    },
+    {
       "name": "users",
       "columns": [
         {
@@ -11,6 +40,31 @@
         {
           "name": "password",
           "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "unique": true
+        },
+        {
+          "name": "public_key",
+          "type": "text",
+          "defaultValue": "\"\""
+        },
+        {
+          "name": "credential_id",
+          "type": "text",
+          "defaultValue": "\"\""
+        },
+        {
+          "name": "userHandle",
+          "type": "string"
+        }
+      ],
+      "revLinks": [
+        {
+          "column": "user",
+          "table": "items"
         }
       ]
     },
@@ -34,11 +88,9 @@
         },
         {
           "name": "created_at",
-          "type": "datetime",
-          "default": "now"
+          "type": "datetime"
         }
       ]
     }
   ]
 }
-

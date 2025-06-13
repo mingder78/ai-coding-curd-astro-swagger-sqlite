@@ -8,14 +8,29 @@ import type {
 
 const tables = [
   {
+    name: "credentials",
+    columns: [
+      { name: "credentialID", type: "string", unique: true },
+      { name: "publicKey", type: "text" },
+      { name: "counter", type: "int" },
+      { name: "userId", type: "link", link: { table: "users" } },
+      { name: "transports", type: "json" },
+    ],
+  },
+  {
     name: "users",
     columns: [
-      { name: "name", type: "string", unique: true },
+      { name: "username", type: "string", unique: true },
       { name: "password", type: "string" },
       { name: "email", type: "email", unique: true },
-      { name: "userHandle", type: "string" }
+      { name: "public_key", type: "text", defaultValue: '""' },
+      { name: "credential_id", type: "text", defaultValue: '""' },
+      { name: "userHandle", type: "string" },
     ],
-    revLinks: [{ column: "user", table: "items" }],
+    revLinks: [
+      { column: "userId", table: "credentials" },
+      { column: "user", table: "items" },
+    ],
   },
   {
     name: "items",
@@ -26,20 +41,13 @@ const tables = [
       { name: "created_at", type: "datetime" },
     ],
   },
-  {
-    name: "credentials",
-    columns: [
-      { name: "credentialID", type: "string", unique: true },
-      { name: "publicKey", type: "text" },
-      { name: "counter", type: "int" },
-      { name: "userId", type: "link", table: "users" },
-      { name: "transports", type: "json" }
-    ]
-  }
 ] as const;
 
 export type SchemaTables = typeof tables;
 export type InferredTypes = SchemaInference<SchemaTables>;
+
+export type Credentials = InferredTypes["credentials"];
+export type CredentialsRecord = Credentials & XataRecord;
 
 export type Users = InferredTypes["users"];
 export type UsersRecord = Users & XataRecord;
@@ -48,14 +56,16 @@ export type Items = InferredTypes["items"];
 export type ItemsRecord = Items & XataRecord;
 
 export type DatabaseSchema = {
+  credentials: CredentialsRecord;
   users: UsersRecord;
   items: ItemsRecord;
 };
 
 const DatabaseClient = buildClient();
+
 const defaultOptions = {
-  apiKey: import.meta.env.XATA_API_KEY,
-  databaseURL: import.meta.env.XATA_DATABASE_URL
+  databaseURL:
+    "https://Ming-der-Wang-s-workspace-o0c6p5.ap-southeast-2.xata.sh/db/ai-coding-curd-astro-swagger-sqlite",
 };
 
 export class XataClient extends DatabaseClient<DatabaseSchema> {

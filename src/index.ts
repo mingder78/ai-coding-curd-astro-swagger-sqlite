@@ -8,18 +8,19 @@ import { Database } from 'bun:sqlite';
 import { getXataClient, type DatabaseSchema } from "./xata";
 import { Kysely } from "kysely";
 import { XataDialect, type Model } from "@xata.io/kysely";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from '@simplewebauthn/server';
+import { isoUint8Array } from '@simplewebauthn/server/helpers';
+
+const xata = getXataClient();
 
 const RP_NAME = import.meta.env.RP_NAME || 'YourAppName';
 const RP_ID = import.meta.env.RP_ID || 'localhost';
 const ORIGIN = import.meta.env.ORIGIN || 'http://localhost:3000';
-
-const xata = getXataClient();
-
-const db2 = new Kysely<Model<DatabaseSchema>>({
-  dialect: new XataDialect({ xata }),
-});
-const page = await xata.db.users.getAll();
-console.log(page);
 
 // Initialize SQLite database
 const db = new Database('app.db');
@@ -164,7 +165,7 @@ const app = new Elysia()
 
         const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?')
           .get(username, password); // Note: In production, verify hashed passwords!
-
+console.log(user)
         if (!user) {
           return {
             success: false,
@@ -351,12 +352,12 @@ const app = new Elysia()
   .post(
     '/register/options',
     async ({ body: { email } }) => {
-      const user = await xata.db.Users.createOrUpdate({ email, userHandle: crypto.randomUUID() });
-      const credentials = await xata.db.Credentials.filter({ userId: user.id }).getMany();
+      const user = await xata.db.users.createOrUpdate({ email, userHandle: crypto.randomUUID() });
+      const credentials = await xata.db.credentials.filter({ userId: user.id }).getMany();
       const challenge = await generateRegistrationOptions({
         rpName: RP_NAME,
         rpID: RP_ID,
-        userID: user.userHandle,
+        userID: isoUint8Array.fromUTF8String('customUserIDHere'), //user.userHandle,
         userName: email,
         attestationType: 'none',
         excludeCredentials: credentials.map((cred) => ({
@@ -365,9 +366,9 @@ const app = new Elysia()
           transports: cred.transports || [],
         })),
       });
-
+console.log(challenge)
       // Store challenge temporarily (e.g., in Xata or in-memory)
-      await xata.db.Users.update(user.id, { challenge: challenge.challenge });
+      await xata.db.users.update(user.id, { challenge: challenge.challenge });
 
       return challenge;
     },
@@ -377,7 +378,7 @@ const app = new Elysia()
   .post(
     '/register/verify',
     async ({ body: { email, response } }) => {
-      const user = await xata.db.Users.filter({ email }).getFirst();
+      const user = await xata.db.users.filter({ email }).getFirst();
       if (!user || !user.challenge) {
         throw new Error('User or challenge not found');
       }
@@ -399,7 +400,7 @@ const app = new Elysia()
         });
 
         // Clear challenge
-        await xata.db.Users.update(user.id, { challenge: null });
+        await xata.db.users.update(user.id, { challenge: null });
 
         // Generate JWT
         const token = await app.jwt.sign({ userId: user.id, email });
@@ -419,7 +420,7 @@ const app = new Elysia()
   .post(
     '/login/options',
     async ({ body: { email } }) => {
-      const user = await xata.db.Users.filter({ email }).getFirst();
+      const user = await xata.db.users.filter({ email }).getFirst();
       if (!user) {
         throw new Error('User not found');
       }
@@ -435,7 +436,7 @@ const app = new Elysia()
       });
 
       // Store challenge
-      await xata.db.Users.update(user.id, { challenge: options.challenge });
+      await xata.db.users.update(user.id, { challenge: options.challenge });
 
       return options;
     },
@@ -445,7 +446,7 @@ const app = new Elysia()
   .post(
     '/login/verify',
     async ({ body: { email, response } }) => {
-      const user = await xata.db.Users.filter({ email }).getFirst();
+      const user = await xata.db.users.filter({ email }).getFirst();
       if (!user || !user.challenge) {
         throw new Error('User or challenge not found');
       }
@@ -477,7 +478,7 @@ const app = new Elysia()
         });
 
         // Clear challenge
-        await xata.db.Users.update(user.id, { challenge: null });
+        await xata.db.users.update(user.id, { challenge: null });
 
         // Generate JWT
         const token = await app.jwt.sign({ userId: user.id, email });
