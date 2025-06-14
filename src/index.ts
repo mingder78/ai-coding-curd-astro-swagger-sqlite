@@ -3,7 +3,6 @@ import { Elysia, t } from 'elysia';
 import { swagger } from '@elysiajs/swagger';
 import { jwt } from '@elysiajs/jwt';
 import { cors } from '@elysiajs/cors';
-import { Database } from 'bun:sqlite';
 // Generated with CLI
 import { getXataClient, type DatabaseSchema } from "./xata";
 import { Kysely } from "kysely";
@@ -13,6 +12,8 @@ import {
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
+  type VerifiedRegistrationResponse,
+  type VerifyRegistrationResponseOpts,
 } from '@simplewebauthn/server';
 import { isoUint8Array } from '@simplewebauthn/server/helpers';
 import base64url from 'base64url';
@@ -22,27 +23,6 @@ const xata = getXataClient();
 const RP_NAME = import.meta.env.RP_NAME || 'YourAppName';
 const RP_ID = import.meta.env.RP_ID || 'localhost';
 const ORIGIN = import.meta.env.ORIGIN || 'http://localhost:3000';
-
-// Initialize SQLite database
-const db = new Database('app.db');
-db.run(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
-  )
-`);
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT,
-    user_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )
-`);
 
 // Types for our data models
 const UserSchema = t.Object({
@@ -108,248 +88,6 @@ const app = new Elysia()
         description: 'return PONG'
       }
     }))
-  // Define auth middleware
-  .derive(({ jwt, headers, set }) => {
-    return {
-      isAuthenticated: async () => {
-        const authHeader = headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          set.status = 401;
-          return false;
-        }
-
-        const token = authHeader.split(' ')[1];
-        const payload = await jwt.verify(token);
-
-        if (!payload) {
-          set.status = 401;
-          return false;
-        }
-
-        return payload;
-      }
-    };
-  })
-  // Auth routes
-  .group('/auth', app => app
-    .post('/register',
-      async ({ body }) => {
-        const { username, password } = body;
-
-        try {
-          const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-          const result = stmt.run(username, password); // Note: In production, hash passwords!
-
-          return {
-            success: true,
-            id: result.lastInsertRowid
-          };
-        } catch (error) {
-          return {
-            success: false,
-            error: 'Username already exists'
-          };
-        }
-      },
-      {
-        body: UserSchema,
-        detail: {
-          tags: ['Auth'],
-          summary: 'Register a new user',
-          description: 'Create a new user account'
-        }
-      }
-    )
-    .post('/login',
-      async ({ body, jwt }) => {
-        const { username, password } = body;
-
-        const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?')
-          .get(username, password); // Note: In production, verify hashed passwords!
-        console.log(user)
-        if (!user) {
-          return {
-            success: false,
-            message: 'Invalid credentials'
-          };
-        }
-
-        const token = await jwt.sign({
-          id: user.id,
-          username: user.username
-        });
-
-        return {
-          success: true,
-          token
-        };
-      },
-      {
-        body: LoginSchema,
-        detail: {
-          tags: ['Auth'],
-          summary: 'User login',
-          description: 'Authenticate a user and generate an access token'
-        }
-      }
-    )
-  )
-  // Item routes
-  .group('/items', app => app
-    .get('/',
-      async ({ isAuthenticated }) => {
-        const auth = await isAuthenticated();
-        if (!auth) return { error: 'Unauthorized' };
-
-        const items = db.prepare('SELECT * FROM items WHERE user_id = ?').all(auth.id);
-        return items;
-      },
-      {
-        detail: {
-          tags: ['Items'],
-          summary: 'Get all items',
-          description: 'Retrieve all items belonging to the authenticated user',
-          security: [{ bearerAuth: [] }]
-        }
-      }
-    )
-    .get('/:id',
-      async ({ params, isAuthenticated }) => {
-        const auth = await isAuthenticated();
-        if (!auth) return { error: 'Unauthorized' };
-
-        const item = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?')
-          .get(params.id, auth.id);
-
-        if (!item) {
-          return {
-            success: false,
-            message: 'Item not found'
-          };
-        }
-
-        return item;
-      },
-      {
-        params: t.Object({
-          id: t.Numeric()
-        }),
-        detail: {
-          tags: ['Items'],
-          summary: 'Get item by ID',
-          description: 'Retrieve a specific item by its ID',
-          security: [{ bearerAuth: [] }]
-        }
-      }
-    )
-    .post('/',
-      async ({ body, isAuthenticated }) => {
-        const auth = await isAuthenticated();
-        if (!auth) return { error: 'Unauthorized' };
-
-        const { name, description } = body;
-
-        const stmt = db.prepare('INSERT INTO items (name, description, user_id) VALUES (?, ?, ?)');
-        const result = stmt.run(name, description, auth.id);
-
-        return {
-          success: true,
-          id: result.lastInsertRowid,
-          name,
-          description,
-          user_id: auth.id
-        };
-      },
-      {
-        body: ItemSchema,
-        detail: {
-          tags: ['Items'],
-          summary: 'Create item',
-          description: 'Create a new item',
-          security: [{ bearerAuth: [] }]
-        }
-      }
-    )
-    .put('/:id',
-      async ({ params, body, isAuthenticated }) => {
-        const auth = await isAuthenticated();
-        if (!auth) return { error: 'Unauthorized' };
-
-        const { name, description } = body;
-
-        // First check if the item exists and belongs to the user
-        const existingItem = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?')
-          .get(params.id, auth.id);
-
-        if (!existingItem) {
-          return {
-            success: false,
-            message: 'Item not found or unauthorized'
-          };
-        }
-
-        const stmt = db.prepare('UPDATE items SET name = ?, description = ? WHERE id = ? AND user_id = ?');
-        stmt.run(name, description, params.id, auth.id);
-
-        return {
-          success: true,
-          id: Number(params.id),
-          name,
-          description,
-          user_id: auth.id
-        };
-      },
-      {
-        params: t.Object({
-          id: t.Numeric()
-        }),
-        body: ItemSchema,
-        detail: {
-          tags: ['Items'],
-          summary: 'Update item',
-          description: 'Update an existing item',
-          security: [{ bearerAuth: [] }]
-        }
-      }
-    )
-    .delete('/:id',
-      async ({ params, isAuthenticated }) => {
-        const auth = await isAuthenticated();
-        if (!auth) return { error: 'Unauthorized' };
-
-        // First check if the item exists and belongs to the user
-        const existingItem = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?')
-          .get(params.id, auth.id);
-
-        if (!existingItem) {
-          return {
-            success: false,
-            message: 'Item not found or unauthorized'
-          };
-        }
-
-        const stmt = db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?');
-        stmt.run(params.id, auth.id);
-
-        return {
-          success: true,
-          message: 'Item deleted successfully'
-        };
-      },
-      {
-        params: t.Object({
-          id: t.Numeric()
-        }),
-        detail: {
-          tags: ['Items'],
-          summary: 'Delete item',
-          description: 'Delete an existing item',
-          security: [{ bearerAuth: [] }]
-        }
-      }
-    )
-  )
-  // Registration: Generate options
   .post(
     '/register/options',
     async ({ body: { email } }) => {
@@ -383,16 +121,23 @@ const app = new Elysia()
       if (!user || !user.challenge) {
         throw new Error('User or challenge not found');
       }
+      let verification: VerifiedRegistrationResponse;
       try {
-      const verification = await verifyRegistrationResponse({
-        response,
-        expectedChallenge: user.challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
-      });
-    console.log(verification.verified) 
-    console.log('asdf') 
-
+        const opts: VerifyRegistrationResponseOpts = {
+          response,
+          expectedChallenge: user.challenge,
+          expectedOrigin: ORIGIN,
+          expectedRPID: RP_ID,
+          requireUserVerification: false,
+        };
+        verification = await verifyRegistrationResponse(opts);
+        console.log(verification.verified)
+        console.log('verification.verified')
+      } catch (error) {
+        const _error = error as Error;
+        console.error(_error);
+        return { error: _error.message };
+      }
       if (verification.verified) {
         await xata.db.credentials.create({
           credentialID: base64url.encode(verification.registrationInfo!.credentialID),
@@ -409,9 +154,6 @@ const app = new Elysia()
         const token = await app.jwt.sign({ userId: user.id, email });
         return { verified: true, token };
       }
-
-    } catch {(e: Error) => console.log(e)}
-      throw new Error('Registration failed');
     },
     {
       body: t.Object({
